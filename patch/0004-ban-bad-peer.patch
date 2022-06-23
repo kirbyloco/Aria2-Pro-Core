@@ -1,7 +1,7 @@
 From 24a609486001a0c743c343aec3eee0f0cb74e861 Mon Sep 17 00:00:00 2001
 From: guochao <guochao@winhong.com>
 Date: Thu, 23 Jun 2022 13:00:17 +0800
-Subject: [PATCH 1/2] ban bad peer
+Subject: [PATCH 1/3] ban bad peer
 
 ---
  src/DefaultBtInteractive.cc      | 39 ++++++++++++++++++++++++
@@ -89,20 +89,6 @@ index 5382954..b501497 100644
    for (int i = 0; i < ExtensionMessageRegistry::MAX_EXTENSION; ++i) {
      int id = extreg_.getExtensionMessageID(i);
      if (id) {
-diff --git a/src/Makefile.in b/src/Makefile.in
-index d194b66..dcd60f5 100644
---- a/src/Makefile.in
-+++ b/src/Makefile.in
-@@ -2012,7 +2012,8 @@ EXTLDADD = @ALLOCA@ \
- 	@WSLAY_LIBS@ \
- 	@TCMALLOC_LIBS@ \
- 	@JEMALLOC_LIBS@ \
--	@LTLIBINTL@
-+	@LTLIBINTL@ \
-+	-lGeoIP
- 
- LDADD = libaria2.la $(am__append_46)
- @ENABLE_LIBARIA2_TRUE@libaria2_la_LIBADD = $(EXTLDADD)
 diff --git a/src/Peer.cc b/src/Peer.cc
 index 8937c01..908e6db 100644
 --- a/src/Peer.cc
@@ -211,6 +197,62 @@ index 030e129..0e81cc3 100644
    bool isSeeder() const { return seeder_; }
  
    void startDrop();
+-- 
+2.36.1
+
+
+From 13cad977a08b8a5b25077af2fdbca1fea8b235a5 Mon Sep 17 00:00:00 2001
+From: guochao <guochao@winhong.com>
+Date: Thu, 23 Jun 2022 13:19:56 +0800
+Subject: [PATCH 2/3] ban badpeer
+
+---
+ src/Makefile.am | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/Makefile.am b/src/Makefile.am
+index cb6e3b7..f1375e5 100644
+--- a/src/Makefile.am
++++ b/src/Makefile.am
+@@ -739,7 +739,8 @@ EXTLDADD = @ALLOCA@ \
+ 	@WSLAY_LIBS@ \
+ 	@TCMALLOC_LIBS@ \
+ 	@JEMALLOC_LIBS@ \
+-	@LTLIBINTL@
++	@LTLIBINTL@ \
++	-lGeoIP
+ 
+ LDADD = libaria2.la
+ 
+-- 
+2.36.1
+
+
+From 708c16fffbeb67ba22c5a3fcd962d4b478795f3f Mon Sep 17 00:00:00 2001
+From: guochao <guochao@winhong.com>
+Date: Thu, 23 Jun 2022 15:08:00 +0800
+Subject: [PATCH 3/3] fix GeoIP path
+
+---
+ src/Peer.cc | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/Peer.cc b/src/Peer.cc
+index 908e6db..7a9dd5d 100644
+--- a/src/Peer.cc
++++ b/src/Peer.cc
+@@ -54,9 +54,9 @@ private:
+   GeoIP *gi_ = NULL;
+ public:
+   GeoIPClass() {
+-    if(GeoIP_db_avail(GEOIP_COUNTRY_EDITION))
++    if(access("/usr/share/GeoIP/GeoIP.dat", F_OK) == 0)
+     {
+-      gi_ = GeoIP_open_type(GEOIP_COUNTRY_EDITION, GEOIP_STANDARD);
++      gi_ = GeoIP_open("/usr/share/GeoIP/GeoIP.dat", GEOIP_STANDARD);
+     }
+   }
+   ~GeoIPClass() {
 -- 
 2.36.1
 
