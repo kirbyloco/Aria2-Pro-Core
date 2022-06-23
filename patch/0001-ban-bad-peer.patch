@@ -1,0 +1,216 @@
+From 24a609486001a0c743c343aec3eee0f0cb74e861 Mon Sep 17 00:00:00 2001
+From: guochao <guochao@winhong.com>
+Date: Thu, 23 Jun 2022 13:00:17 +0800
+Subject: [PATCH 1/2] ban bad peer
+
+---
+ src/DefaultBtInteractive.cc      | 39 ++++++++++++++++++++++++
+ src/HandshakeExtensionMessage.cc |  3 ++
+ src/Makefile.in                  |  3 +-
+ src/Peer.cc                      | 51 ++++++++++++++++++++++++++++++++
+ src/Peer.h                       | 10 +++++++
+ 5 files changed, 105 insertions(+), 1 deletion(-)
+
+diff --git a/src/DefaultBtInteractive.cc b/src/DefaultBtInteractive.cc
+index da68aa9..46c8f41 100644
+--- a/src/DefaultBtInteractive.cc
++++ b/src/DefaultBtInteractive.cc
+@@ -36,6 +36,7 @@
+ 
+ #include <cstring>
+ #include <vector>
++#include <regex>
+ 
+ #include "prefs.h"
+ #include "message.h"
+@@ -528,6 +529,28 @@ void DefaultBtInteractive::addPeerExchangeMessage()
+   }
+ }
+ 
++static bool is_bad_peer(Peer *peer)
++{
++  std::regex id_filter("-(XL|SD|XF|QD|BN|DL)(\\d+)-");
++  std::regex ua_filter(R"((\d+.\d+.\d+.\d+|cacao_torrent))");
++  std::regex player_filter("-(UW\\w{4})-");
++  const char *peer_name = reinterpret_cast<const char *>(peer->getPeerId());
++  if (std::regex_match(peer_name, peer_name + 8, id_filter)) {
++    return true;
++  }
++  if (std::regex_match(peer_name, peer_name + 8, player_filter)) {
++    return true;
++  }
++  if (!peer->getClientVersion().empty() && std::regex_match(peer->getClientVersion(), ua_filter)) {
++    return true;
++  }
++  if (peer->getPort() >= 65000 && peer->getCountry() == std::string("CN") &&
++      peer->getClientVersion().find("Transmission") != std::string::npos) {
++    return true;
++  }
++  return false;
++}
++
+ void DefaultBtInteractive::doInteractionProcessing()
+ {
+   if (metadataGetMode_) {
+@@ -568,6 +591,22 @@ void DefaultBtInteractive::doInteractionProcessing()
+       dispatcher_->checkRequestSlotAndDoNecessaryThing();
+     }
+     numReceivedMessage_ = receiveMessages();
++
++    if(is_bad_peer(peer_.get()))
++    {
++      throw DL_ABORT_EX(fmt("Drop bad leecher peer: peer_id=%s client_version=%s ipaddr=%s country=%s port=%d",
++        util::percentEncode(peer_->getPeerId(), 20).c_str(),
++        peer_->getClientVersion().c_str(),
++        peer_->getIPAddress().c_str(),
++        peer_->getCountry().c_str(),
++        peer_->getPort()));
++    }
++    A2_LOG_DEBUG(fmt("GC: peer_id=%s client_version=%s ipaddr=%s country=%s port=%d",
++      util::percentEncode(peer_->getPeerId(), 20).c_str(),
++      peer_->getClientVersion().c_str(),
++      peer_->getIPAddress().c_str(),
++      peer_->getCountry().c_str(),
++      peer_->getPort()));
+     detectMessageFlooding();
+     decideChoking();
+     decideInterest();
+diff --git a/src/HandshakeExtensionMessage.cc b/src/HandshakeExtensionMessage.cc
+index 5382954..b501497 100644
+--- a/src/HandshakeExtensionMessage.cc
++++ b/src/HandshakeExtensionMessage.cc
+@@ -100,6 +100,9 @@ void HandshakeExtensionMessage::doReceivedAction()
+     peer_->setPort(tcpPort_);
+     peer_->setIncomingPeer(false);
+   }
++  if (!clientVersion_.empty()) {
++    peer_->setClientVersion(clientVersion_);
++  }
+   for (int i = 0; i < ExtensionMessageRegistry::MAX_EXTENSION; ++i) {
+     int id = extreg_.getExtensionMessageID(i);
+     if (id) {
+diff --git a/src/Makefile.in b/src/Makefile.in
+index d194b66..dcd60f5 100644
+--- a/src/Makefile.in
++++ b/src/Makefile.in
+@@ -2012,7 +2012,8 @@ EXTLDADD = @ALLOCA@ \
+ 	@WSLAY_LIBS@ \
+ 	@TCMALLOC_LIBS@ \
+ 	@JEMALLOC_LIBS@ \
+-	@LTLIBINTL@
++	@LTLIBINTL@ \
++	-lGeoIP
+ 
+ LDADD = libaria2.la $(am__append_46)
+ @ENABLE_LIBARIA2_TRUE@libaria2_la_LIBADD = $(EXTLDADD)
+diff --git a/src/Peer.cc b/src/Peer.cc
+index 8937c01..908e6db 100644
+--- a/src/Peer.cc
++++ b/src/Peer.cc
+@@ -41,10 +41,51 @@
+ #include "a2functional.h"
+ #include "PeerSessionResource.h"
+ #include "BtMessageDispatcher.h"
++#include "Logger.h"
++#include "LogFactory.h"
++#include "fmt.h"
+ #include "wallclock.h"
++#include "GeoIP.h"
+ 
+ namespace aria2 {
+ 
++class GeoIPClass {
++private:
++  GeoIP *gi_ = NULL;
++public:
++  GeoIPClass() {
++    if(GeoIP_db_avail(GEOIP_COUNTRY_EDITION))
++    {
++      gi_ = GeoIP_open_type(GEOIP_COUNTRY_EDITION, GEOIP_STANDARD);
++    }
++  }
++  ~GeoIPClass() {
++    if(gi_)
++      GeoIP_delete(gi_);
++  }
++  GeoIP *get() {
++    return gi_;
++  }
++};
++
++class GeoIPFactory {
++private:
++  static std::shared_ptr<GeoIPClass> gi_;
++  GeoIPFactory();
++public:
++  static const std::shared_ptr<GeoIPClass>& getInstance()
++  {
++    if(!gi_)
++    {
++      auto sgi = std::make_shared<GeoIPClass>();
++      gi_.swap(sgi);
++    }
++    return gi_;
++  }
++};
++
++std::shared_ptr<GeoIPClass> GeoIPFactory::gi_;
++
+ Peer::Peer(std::string ipaddr, uint16_t port, bool incoming)
+     : ipaddr_(std::move(ipaddr)),
+       port_(port),
+@@ -62,6 +103,16 @@ Peer::Peer(std::string ipaddr, uint16_t port, bool incoming)
+ 
+ Peer::~Peer() { releaseSessionResource(); }
+ 
++const std::string& Peer::getCountry() {
++  const std::shared_ptr<GeoIPClass> gi = GeoIPFactory::getInstance();
++  if(country_.empty() && !ipaddr_.empty() && gi->get())
++  {
++    country_ = std::string(GeoIP_country_code_by_addr(gi->get(), ipaddr_.c_str()));
++  }
++  A2_LOG_INFO(fmt("gi=%p, ip=%s, country=%s", gi->get(), ipaddr_.c_str(), country_.c_str()));
++  return country_;
++}
++
+ void Peer::usedBy(cuid_t cuid) { cuid_ = cuid; }
+ 
+ void Peer::allocateSessionResource(int32_t pieceLength, int64_t totalLength)
+diff --git a/src/Peer.h b/src/Peer.h
+index 030e129..0e81cc3 100644
+--- a/src/Peer.h
++++ b/src/Peer.h
+@@ -56,6 +56,7 @@ class BtMessageDispatcher;
+ class Peer {
+ private:
+   std::string ipaddr_;
++  std::string country_;
+   // TCP port of the other end of communication.  If incoming_ is
+   // true, then this port is not a port the peer is listening to and
+   // we cannot connect to it.
+@@ -67,6 +68,7 @@ private:
+   cuid_t cuid_;
+ 
+   unsigned char peerId_[PEER_ID_LENGTH];
++  std::string clientVersion_;
+ 
+   Timer firstContactTime_;
+ 
+@@ -116,6 +118,14 @@ public:
+ 
+   const unsigned char* getPeerId() const { return peerId_; }
+ 
++  void setClientVersion(const std::string& version)
++  {
++    clientVersion_ = version;
++  }
++
++  const std::string& getClientVersion() const { return clientVersion_; }
++  const std::string& getCountry();
++
+   bool isSeeder() const { return seeder_; }
+ 
+   void startDrop();
+-- 
+2.36.1
+

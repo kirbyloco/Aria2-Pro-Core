@@ -10,6 +10,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 ARG BUILD_SCRIPT=aria2-gnu-linux-build.sh
 
+
+RUN sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list && sed -i 's/security.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list
 RUN bash $BUILD_SCRIPT
 
 FROM scratch

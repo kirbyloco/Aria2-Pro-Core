@@ -11,7 +11,8 @@
 DEBIAN_INSTALL() {
     $SUDO apt-get update
     $SUDO apt-get -y install build-essential git curl ca-certificates \
-        libxml2-dev libcppunit-dev autoconf automake autotools-dev autopoint libtool pkg-config
+        libxml2-dev libcppunit-dev autoconf automake autotools-dev autopoint libtool pkg-config \
+        libgeoip-dev libgeoip1 geoip-bin geoip-database
 }
 
 FEDORA_INSTALL() {

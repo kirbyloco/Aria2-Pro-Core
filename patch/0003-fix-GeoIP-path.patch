@@ -1,0 +1,28 @@
+From 708c16fffbeb67ba22c5a3fcd962d4b478795f3f Mon Sep 17 00:00:00 2001
+From: guochao <guochao@winhong.com>
+Date: Thu, 23 Jun 2022 15:08:00 +0800
+Subject: [PATCH 3/3] fix GeoIP path
+
+---
+ src/Peer.cc | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/Peer.cc b/src/Peer.cc
+index 908e6db..7a9dd5d 100644
+--- a/src/Peer.cc
++++ b/src/Peer.cc
+@@ -54,9 +54,9 @@ private:
+   GeoIP *gi_ = NULL;
+ public:
+   GeoIPClass() {
+-    if(GeoIP_db_avail(GEOIP_COUNTRY_EDITION))
++    if(access("/usr/share/GeoIP/GeoIP.dat", F_OK) == 0)
+     {
+-      gi_ = GeoIP_open_type(GEOIP_COUNTRY_EDITION, GEOIP_STANDARD);
++      gi_ = GeoIP_open("/usr/share/GeoIP/GeoIP.dat", GEOIP_STANDARD);
+     }
+   }
+   ~GeoIPClass() {
+-- 
+2.36.1
+

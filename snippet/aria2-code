@@ -24,9 +24,7 @@ ARIA2_GIT_CODE() {
 
 ARIA2_RELEASE_CODE() {
     mkdir -p $ARIA2_CODE_DIR && cd $ARIA2_CODE_DIR
-    curl -s 'https://api.github.com/repos/aria2/aria2/releases/latest' |
-        grep 'browser_download_url.*[0-9]\.tar\.xz' | sed -e 's/^[[:space:]]*//' |
-        cut -d ' ' -f 2 | xargs -I % curl -Ls -o - '%' | tar Jxvf - --strip-components=1
+    curl -Ls -o - "$ARIA2_URL" | tar Jxvf - --strip-components=1
 }
 
 ARIA2_PATCH() {
@@ -34,7 +32,7 @@ ARIA2_PATCH() {
 }
 
 ARIA2_CODE_GET() {
-    #ARIA2_RELEASE_CODE
-    ARIA2_GIT_CODE
+    ARIA2_RELEASE_CODE
+    #ARIA2_GIT_CODE
     ARIA2_PATCH
 }

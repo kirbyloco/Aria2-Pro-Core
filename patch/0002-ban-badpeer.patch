@@ -1,0 +1,26 @@
+From 13cad977a08b8a5b25077af2fdbca1fea8b235a5 Mon Sep 17 00:00:00 2001
+From: guochao <guochao@winhong.com>
+Date: Thu, 23 Jun 2022 13:19:56 +0800
+Subject: [PATCH 2/2] ban badpeer
+
+---
+ src/Makefile.am | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/Makefile.am b/src/Makefile.am
+index cb6e3b7..f1375e5 100644
+--- a/src/Makefile.am
++++ b/src/Makefile.am
+@@ -739,7 +739,8 @@ EXTLDADD = @ALLOCA@ \
+ 	@WSLAY_LIBS@ \
+ 	@TCMALLOC_LIBS@ \
+ 	@JEMALLOC_LIBS@ \
+-	@LTLIBINTL@
++	@LTLIBINTL@ \
++	-lGeoIP
+ 
+ LDADD = libaria2.la
+ 
+-- 
+2.36.1
+
