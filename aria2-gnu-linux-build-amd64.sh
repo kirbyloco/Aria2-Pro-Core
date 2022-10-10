@@ -7,7 +7,7 @@
 #
 # https://github.com/P3TERX/Aria2-Pro-Core
 # File name: aria2-gnu-linux-build.sh
-# Description: Aria2 ard64 platform build
+# Description: Aria2 amd64 platform build
 # System Required: Debian & Ubuntu & Fedora & Arch Linux
 # Version: 1.6
 #
