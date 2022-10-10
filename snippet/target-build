@@ -92,22 +92,10 @@ JEMALLOC_BUILD() {
     make install
 }
 
-GEOIP_BUILD() {
-    mkdir -p $BUILD_DIR/geoip-api-c && cd $BUILD_DIR/geoip-api-c
-    curl -Ls -o - 'https://github.com/maxmind/geoip-api-c/releases/download/v1.6.12/GeoIP-1.6.12.tar.gz' | tar xzf - --strip-components=1
-    autoreconf -fi
-    ./configure \
-        --prefix=$PREFIX \
-        --enable-static \
-        --disable-shared
-    make -j$(nproc)
-    make install
-}
-
 ARIA2_BUILD() {
     ARIA2_CODE_GET
     ./configure \
-        --prefix=${ARIA2_PREFIX:-'/usr/loacl'} \
+        --prefix=${ARIA2_PREFIX:-'/usr/local'} \
         --with-libz \
         --with-libcares \
         --with-libexpat \
