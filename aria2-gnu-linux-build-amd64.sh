@@ -22,7 +22,7 @@ ARCH="amd64"
 OPENSSL_ARCH="linux-x86_64"
 BUILD_DIR="/tmp"
 ARIA2_CODE_DIR="$BUILD_DIR/aria2"
-OUTPUT_DIR="$HOME/output"
+OUTPUT_DIR="output"
 PREFIX="$BUILD_DIR/aria2-build-libs"
 ARIA2_PREFIX="/usr/local"
 export CURL_CA_BUNDLE="/etc/ssl/certs/ca-certificates.crt"
@@ -80,6 +80,6 @@ ARIA2_BUILD
 #ARIA2_BIN
 ARIA2_PACKAGE
 #ARIA2_INSTALL
-CLEANUP_ALL
+#CLEANUP_ALL
 
 echo "finished!"
