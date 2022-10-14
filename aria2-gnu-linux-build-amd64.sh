@@ -1,31 +1,10 @@
-#!/usr/bin/env bash
-#
-# Copyright (c) 2020 P3TERX <https://p3terx.com>
-#
-# This is free software, licensed under the GNU General Public License v3.
-# See /LICENSE for more information.
-#
-# https://github.com/P3TERX/Aria2-Pro-Core
-# File name: aria2-gnu-linux-build.sh
-# Description: Aria2 amd64 platform build
-# System Required: Debian & Ubuntu & Fedora & Arch Linux
-# Version: 1.6
-#
-
-set -e
-[ $EUID != 0 ] && SUDO=sudo
-$SUDO echo
 SCRIPT_DIR=$(dirname $(readlink -f $0))
 
 ## CONFIG ##
-ARCH="amd64"
-OPENSSL_ARCH="linux-x86_64"
 BUILD_DIR="/tmp"
 ARIA2_CODE_DIR="$BUILD_DIR/aria2"
-OUTPUT_DIR="output"
+OUTPUT_DIR="$BUILD_DIR/output"
 PREFIX="$BUILD_DIR/aria2-build-libs"
-ARIA2_PREFIX="/usr/local"
-export CURL_CA_BUNDLE="/etc/ssl/certs/ca-certificates.crt"
 export PKG_CONFIG_PATH="$PREFIX/lib/pkgconfig"
 export LD_LIBRARY_PATH="$PREFIX/lib"
 export CC="gcc"
@@ -36,50 +15,120 @@ export AR="ar"
 export LD="ld"
 
 ## DEPENDENCES ##
-source $SCRIPT_DIR/dependences
+ZLIB_NG='https://github.com/zlib-ng/zlib-ng/archive/refs/tags/2.0.6.tar.gz'
+C_ARES='https://c-ares.haxx.se/download/c-ares-1.18.1.tar.gz'
+LIBRESSL='https://ftp.openbsd.org/pub/OpenBSD/LibreSSL/libressl-3.5.3.tar.gz'
+SQLITE3='https://www.sqlite.org/2022/sqlite-autoconf-3390400.tar.gz'
+LIBSSH2='https://github.com/libssh2/libssh2/archive/refs/heads/master.tar.gz'
+LIBXML2='https://github.com/GNOME/libxml2/archive/refs/tags/v2.10.2.tar.gz'
 
-## TOOLCHAIN ##
-source $SCRIPT_DIR/snippet/target-toolchain
+apt update
+apt -y install build-essential git curl \
+    libcppunit-dev autoconf automake autotools-dev autopoint libtool pkg-config
 
-TOOLCHAIN() {
-    if [ -x "$(command -v apt-get)" ]; then
-        DEBIAN_INSTALL
-    elif [ -x "$(command -v dnf)" ]; then
-        FEDORA_INSTALL
-    elif [ -x "$(command -v pacman)" ]; then
-        ARCH_INSTALL
-    else
-        echo -e "This operating system is not supported !"
-        exit 1
-    fi
+ZLIB_NG_BUILD() {
+    mkdir -p $BUILD_DIR/zlib_ng && cd $BUILD_DIR/zlib_ng
+    curl -Ls -o - "$ZLIB_NG" | tar -zxf - --strip-components=1
+    ./configure \
+        --prefix=$PREFIX \
+        --static \
+        --zlib-compat
+    make -j$(nproc)
+    make install
 }
 
-## BUILD ##
-source $SCRIPT_DIR/snippet/target-build
+C_ARES_BUILD() {
+    mkdir -p $BUILD_DIR/c-ares && cd $BUILD_DIR/c-ares
+    curl -Ls -o - "$C_ARES" | tar -zxf - --strip-components=1
+    ./configure \
+        --prefix=$PREFIX \
+        --enable-static \
+        --disable-shared \
+        --enable-silent-rules \
+        --disable-tests
+    make -j$(nproc)
+    make install
+}
 
-## ARIA2 COEDE ##
-source $SCRIPT_DIR/snippet/aria2-code
+LIBRESSL_BUILD() {
+    mkdir -p $BUILD_DIR/libressl && cd $BUILD_DIR/libressl
+    curl -Ls -o - "$LIBRESSL" | tar -zxf - --strip-components=1
+    autoreconf
+    ./configure \
+        --prefix=$PREFIX \
+        --enable-silent-rules \
+        --enable-static \
+        --disable-shared \
+        --with-openssldir=/etc/ssl
+    make -j$(nproc)
+    make install_sw
+}
 
-## ARIA2 BIN ##
-source $SCRIPT_DIR/snippet/aria2-bin
+SQLITE3_BUILD() {
+    mkdir -p $BUILD_DIR/sqlite3 && cd $BUILD_DIR/sqlite3
+    curl -Ls -o - "$SQLITE3" | tar -zxf - --strip-components=1
+    ./configure \
+        --prefix=$PREFIX \
+        --enable-static \
+        --disable-shared
+    make -j$(nproc)
+    make install
+}
 
-## CLEAN ##
-source $SCRIPT_DIR/snippet/clean
+LIBSSH2_BUILD() {
+    mkdir -p $BUILD_DIR/libssh2 && cd $BUILD_DIR/libssh2
+    curl -Ls -o - "$LIBSSH2" | tar -zxf - --strip-components=1
+    autoreconf -if -Wall
+    ./configure \
+        --prefix=$PREFIX \
+        --enable-static \
+        --disable-shared \
+        --enable-silent-rules
+    make -j$(nproc)
+    make install
+}
+
+LIBXML2_BUILD() {
+    mkdir -p $BUILD_DIR/libxml2 && cd $BUILD_DIR/libxml2
+    curl -Ls -o - "$LIBXML2" | tar -zxf - --strip-components=1
+    autoreconf -if -Wall
+    ./configure \
+        --prefix=$PREFIX \
+        --enable-silent-rules \
+        --without-python \
+        --without-icu \
+        --enable-static \
+        --disable-shared
+    make -j$(nproc)
+    make install
+}
+
+ARIA2_BUILD() {
+    git clone https://github.com/aria2/aria2 $ARIA2_CODE_DIR
+    cd $ARIA2_CODE_DIR
+    git apply $SCRIPT_DIR/patch/*.patch
+    autoreconf -if -Wall
+    ./configure \
+        --prefix=$PREFIX \
+        --disable-shared \
+        ARIA2_STATIC=yes
+    make -j$(nproc)
+}
+
+
 
 ## BUILD PROCESS ##
-TOOLCHAIN
-ZLIB_BUILD
-EXPAT_BUILD
-C_ARES_BUILD
-OPENSSL_BUILD
+ZLIB_NG_BUILD
+LIBRESSL_BUILD
+LIBXML2_BUILD
 SQLITE3_BUILD
+C_ARES_BUILD
 LIBSSH2_BUILD
-#JEMALLOC_BUILD
-#GEOIP_BUILD
 ARIA2_BUILD
-#ARIA2_BIN
-ARIA2_PACKAGE
-#ARIA2_INSTALL
-#CLEANUP_ALL
+
+cd $ARIA2_CODE_DIR/src
+$STRIP aria2c
+mkdir $OUTPUT_DIR
+tar zcf $OUTPUT_DIR/aria2-static-linux-amd64.tar.gz aria2c
 
 echo "finished!"

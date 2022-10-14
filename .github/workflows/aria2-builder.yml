@@ -20,6 +20,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    container: ubuntu:22.04
 
     steps:
     - name: Checkout
@@ -34,5 +35,5 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: aria2-static-linux-amd64.tar.gz
-        path: /tmp/aria2/src/output
+        path: /tmp/output/
 
