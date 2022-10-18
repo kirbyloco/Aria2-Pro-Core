@@ -20,7 +20,7 @@ C_ARES='https://c-ares.haxx.se/download/c-ares-1.18.1.tar.gz'
 LIBRESSL='https://ftp.openbsd.org/pub/OpenBSD/LibreSSL/libressl-3.5.3.tar.gz'
 SQLITE3='https://www.sqlite.org/2022/sqlite-autoconf-3390400.tar.gz'
 LIBSSH2='https://github.com/libssh2/libssh2/archive/refs/heads/master.tar.gz'
-LIBXML2='https://github.com/GNOME/libxml2/archive/refs/tags/v2.10.2.tar.gz'
+LIBXML2='https://github.com/GNOME/libxml2/archive/refs/tags/v2.10.3.tar.gz'
 
 apt update
 apt -y install build-essential git curl \
